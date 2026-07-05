@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Skyline — a minimal weather dashboard with 7-day forecasts, hourly charts, air quality, UV metrics, sun arc, moon phase, and more.">
+    <title>Skyline // Weather Dashboard</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Ambient weather background layers -->
+    <div id="dynamic-bg" class="weather-bg-container">
+        <div class="sun-glow"></div>
+        <div class="rain-layer" id="rain-layer"></div>
+        <div class="snow-layer" id="snow-layer"></div>
+    </div>
+
+    <main class="app-container">
+
+        <!-- ─── Sidebar ─────────────────────────────── -->
+        <aside class="sidebar">
+            <div class="brand">
+                <i data-lucide="cloud-lightning" class="brand-icon"></i>
+                <h2>Skyline</h2>
+            </div>
+
+            <div class="search-section">
+                <div class="search-box">
+                    <i data-lucide="search" class="search-icon"></i>
+                    <input type="text" id="search-input" placeholder="search city... or press /" autocomplete="off">
+                    <button id="geo-btn" title="Use my location">
+                        <i data-lucide="map-pin"></i>
+                    </button>
+                </div>
+                <div id="search-results" class="search-results-dropdown hidden"></div>
+            </div>
+
+            <div class="saved-locations-section">
+                <div class="section-title">
+                    <h3>Saved Locations</h3>
+                    <i data-lucide="star" class="section-icon"></i>
+                </div>
+                <ul id="saved-locations-list" class="locations-list"></ul>
+            </div>
+
+            <!-- Moon Phase Widget -->
+            <div class="moon-widget">
+                <div id="moon-visual" class="moon-visual">🌑</div>
+                <div class="moon-info">
+                    <span class="moon-label">Moon Phase</span>
+                    <span id="moon-phase-name" class="moon-phase-name">--</span>
+                    <span id="moon-illumination" class="moon-illumination">-- illuminated</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ─── Dashboard ────────────────────────────── -->
+        <section class="dashboard-content">
+
+            <header class="dashboard-header">
+                <div class="date-time-container">
+                    <span id="current-date">--</span>
+                    <span class="dot"></span>
+                    <span id="current-time">--</span>
+                    <span class="dot"></span>
+                    <span id="last-updated" class="last-updated">not yet loaded</span>
+                </div>
+                <div class="controls-row">
+                    <button id="refresh-btn" class="header-btn" title="Refresh data">
+                        <i data-lucide="refresh-cw"></i>
+                        <span>Refresh</span>
+                    </button>
+                    <button id="save-location-btn" class="header-btn">
+                        <i data-lucide="star"></i>
+                        <span>Save</span>
+                    </button>
+                    <button id="share-btn" class="header-btn">
+                        <i data-lucide="share-2"></i>
+                        <span>Share</span>
+                    </button>
+                    <button id="theme-btn" class="header-btn">
+                        <i data-lucide="palette"></i>
+                        <span>Theme</span>
+                    </button>
+                    <div class="unit-toggle-group">
+                        <button id="unit-c" class="unit-btn active">°C</button>
+                        <button id="unit-f" class="unit-btn">°F</button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Weather Alerts -->
+            <div id="alerts-banner" class="alerts-banner hidden">
+                <i data-lucide="alert-triangle"></i>
+                <div id="alerts-list" class="alerts-list"></div>
+            </div>
+
+            <!-- Error -->
+            <div id="error-banner" class="error-banner hidden">
+                <i data-lucide="alert-circle"></i>
+                <span id="error-message">Could not fetch weather data.</span>
+                <button id="close-error" class="close-btn">&times;</button>
+            </div>
+
+            <!-- ─── Main Weather Grid ─────────────────── -->
+            <div class="weather-grid" id="weather-capture">
+
+                <!-- Current Weather -->
+                <div class="grid-card current-weather-card">
+                    <div class="weather-summary">
+                        <div class="weather-header">
+                            <h1 id="location-name">Detecting location...</h1>
+                            <span id="weather-description">--</span>
+                        </div>
+                        <div class="temp-display" id="temp-display-clickable" title="Click to copy temperature">
+                            <span id="current-temp">--</span>
+                            <span class="temp-unit">°</span>
+                        </div>
+                        <div class="feels-row">
+                            <span class="feels-label">feels like</span>
+                            <strong id="feels-like-temp" class="feels-value">--°</strong>
+                        </div>
+                        <div class="high-low-display">
+                            <span>H: <strong id="temp-max">--°</strong></span>
+                            <span class="divider"></span>
+                            <span>L: <strong id="temp-min">--°</strong></span>
+                        </div>
+                    </div>
+                    <div class="weather-visual-icon">
+                        <i id="main-weather-icon" data-lucide="sun" class="weather-icon-giant"></i>
+                    </div>
+                </div>
+
+                <!-- 7-Day Forecast -->
+                <div class="grid-card forecast-card">
+                    <h3>7-Day Forecast</h3>
+                    <div class="forecast-list" id="forecast-list"></div>
+                </div>
+
+                <!-- Sun Arc -->
+                <div class="grid-card sun-arc-card">
+                    <h3>Sun Position</h3>
+                    <div class="sun-arc-container">
+                        <svg id="sun-arc-svg" viewBox="0 0 300 120" xmlns="http://www.w3.org/2000/svg" width="100%"></svg>
+                        <div class="sun-times-row">
+                            <div class="sun-time-block">
+                                <span class="sun-time-label">sunrise</span>
+                                <span id="sun-rise-time" class="sun-time-val">--:--</span>
+                            </div>
+                            <div class="golden-hour-block">
+                                <span id="golden-label" class="golden-label">until golden hour</span>
+                                <span id="golden-hour-val" class="golden-val">--:--</span>
+                            </div>
+                            <div class="sun-time-block text-right">
+                                <span class="sun-time-label">sunset</span>
+                                <span id="sun-set-time" class="sun-time-val">--:--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hourly Chart -->
+                <div class="grid-card hourly-chart-card">
+                    <h3>12-Hour Forecast &amp; Rain</h3>
+                    <div class="chart-container">
+                        <canvas id="hourlyChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Metrics -->
+                <div class="metrics-grid">
+
+                    <!-- Wind + Compass -->
+                    <div class="grid-card metric-card wind-card">
+                        <div class="metric-header">
+                            <i data-lucide="wind"></i>
+                            <span>Wind</span>
+                        </div>
+                        <div class="wind-metric-layout">
+                            <div class="wind-text">
+                                <div class="metric-value" id="val-wind">-- km/h</div>
+                                <div class="metric-footer" id="val-wind-dir">Direction: --</div>
+                                <div class="metric-footer" id="val-wind-gust">Gusts: --</div>
+                            </div>
+                            <div class="compass-container">
+                                <svg id="compass-svg" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="40" cy="40" r="36" fill="none" stroke="var(--border-subtle)" stroke-width="1"/>
+                                    <circle cx="40" cy="40" r="2" fill="var(--text-muted)"/>
+                                    <line x1="40" y1="6"  x2="40" y2="13" stroke="var(--border)" stroke-width="1.5"/>
+                                    <line x1="74" y1="40" x2="67" y2="40" stroke="var(--border)" stroke-width="1"/>
+                                    <line x1="6"  y1="40" x2="13" y2="40" stroke="var(--border)" stroke-width="1"/>
+                                    <line x1="40" y1="74" x2="40" y2="67" stroke="var(--border)" stroke-width="1"/>
+                                    <text x="40" y="4"  text-anchor="middle" dominant-baseline="hanging" fill="var(--text-secondary)" font-size="7" font-family="JetBrains Mono,monospace" font-weight="600">N</text>
+                                    <text x="77" y="40" text-anchor="start"  dominant-baseline="middle"  fill="var(--text-muted)"    font-size="6" font-family="JetBrains Mono,monospace">E</text>
+                                    <text x="40" y="78" text-anchor="middle" dominant-baseline="auto"   fill="var(--text-muted)"    font-size="6" font-family="JetBrains Mono,monospace">S</text>
+                                    <text x="3"  y="40" text-anchor="end"    dominant-baseline="middle"  fill="var(--text-muted)"    font-size="6" font-family="JetBrains Mono,monospace">W</text>
+                                    <g id="compass-needle" transform="rotate(0, 40, 40)">
+                                        <polygon points="40,12 43,40 40,45 37,40" fill="var(--accent)"      opacity="0.9"/>
+                                        <polygon points="40,68 43,40 40,45 37,40" fill="var(--border)"      opacity="0.75"/>
+                                    </g>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Humidity -->
+                    <div class="grid-card metric-card">
+                        <div class="metric-header"><i data-lucide="droplets"></i><span>Humidity</span></div>
+                        <div class="metric-value" id="val-humidity">--%</div>
+                        <div class="metric-footer" id="val-humidity-desc">--</div>
+                    </div>
+
+                    <!-- UV Index -->
+                    <div class="grid-card metric-card">
+                        <div class="metric-header"><i data-lucide="sun"></i><span>UV Index</span></div>
+                        <div class="metric-value" id="val-uv">--</div>
+                        <div class="metric-footer" id="val-uv-desc">--</div>
+                    </div>
+
+                    <!-- Air Quality -->
+                    <div class="grid-card metric-card">
+                        <div class="metric-header"><i data-lucide="leaf"></i><span>Air Quality</span></div>
+                        <div class="metric-value" id="val-aqi">--</div>
+                        <div class="metric-footer" id="val-aqi-desc">--</div>
+                    </div>
+
+                    <!-- Pressure -->
+                    <div class="grid-card metric-card">
+                        <div class="metric-header"><i data-lucide="gauge"></i><span>Pressure</span></div>
+                        <div class="metric-value" id="val-pressure">-- hPa</div>
+                        <div class="metric-footer" id="val-pressure-desc">--</div>
+                    </div>
+
+                    <!-- Apparent Temperature -->
+                    <div class="grid-card metric-card">
+                        <div class="metric-header"><i data-lucide="thermometer"></i><span>Apparent Temp</span></div>
+                        <div class="metric-value" id="val-apparent">--°</div>
+                        <div class="metric-footer" id="val-apparent-desc">--</div>
+                    </div>
+
+                </div><!-- /metrics-grid -->
+            </div><!-- /weather-grid -->
+        </section>
+    </main>
+
+    <!-- Copy toast notification -->
+    <div id="copy-toast" class="copy-toast hidden">copied!</div>
+
+    <!-- Theme panel backdrop -->
+    <div id="theme-overlay" class="theme-overlay hidden"></div>
+
+    <!-- Theme panel -->
+    <aside id="theme-panel" class="theme-panel" aria-label="Theme settings">
+        <div class="theme-panel-header">
+            <span>Appearance</span>
+            <button id="theme-close" class="theme-close-btn"><i data-lucide="x"></i></button>
+        </div>
+
+        <!-- Preset Themes -->
+        <div class="theme-section">
+            <p class="theme-section-label">Presets</p>
+            <div class="theme-presets-grid" id="theme-presets-grid"></div>
+        </div>
+
+        <div class="theme-divider"></div>
+
+        <!-- Custom Controls -->
+        <div class="theme-section">
+            <p class="theme-section-label">Customise</p>
+
+            <div class="theme-control-row">
+                <label for="custom-accent">Accent color</label>
+                <div class="color-input-wrap">
+                    <input type="color" id="custom-accent" value="#8fb4f8">
+                    <span id="custom-accent-hex" class="hex-label">#8fb4f8</span>
+                </div>
+            </div>
+
+            <div class="theme-control-row">
+                <label for="custom-bg">Background color</label>
+                <div class="color-input-wrap">
+                    <input type="color" id="custom-bg" value="#2a2f42">
+                    <span id="custom-bg-hex" class="hex-label">#2a2f42</span>
+                </div>
+            </div>
+
+            <div class="theme-control-row">
+                <label for="custom-font">Typography</label>
+                <select id="custom-font" class="theme-select">
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                    <option value="'Inter', sans-serif">Inter</option>
+                    <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                    <option value="'Roboto Mono', monospace">Roboto Mono</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="theme-divider"></div>
+
+        <!-- Reset -->
+        <div class="theme-section">
+            <button id="theme-reset" class="theme-reset-btn">
+                <i data-lucide="rotate-ccw"></i>
+                Reset to default
+            </button>
+        </div>
+    </aside>
+
+    <script src="app.js"></script>
+</body>
+</html>
