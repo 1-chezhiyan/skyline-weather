@@ -368,7 +368,8 @@ function detectUserLocation() {
         () => {
             showError('Location denied. Showing New York.');
             fetchWeatherData();
-        }
+        },
+        { timeout: 5000, maximumAge: 0 }
     );
 }
 
