@@ -334,6 +334,10 @@ li.drag-over .location-card { border-color: var(--accent); background: var(--bg-
     display: flex; flex-direction: column;
     padding: 28px 32px; overflow-y: auto;
     gap: 14px; height: 100%;
+    scrollbar-width: none; /* Firefox */
+}
+.dashboard-content::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
 }
 
 /* ── Header ── */
@@ -424,7 +428,7 @@ li.drag-over .location-card { border-color: var(--accent); background: var(--bg-
 .weather-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 14px; flex: 1; min-height: 0;
+    gap: 14px; flex: 1;
 }
 
 /* ── Generic Card ── */
@@ -527,7 +531,7 @@ li.drag-over .location-card { border-color: var(--accent); background: var(--bg-
 
 .forecast-row {
     display: flex; align-items: center;
-    padding: 8px 0; gap: 10px;
+    padding: 6px 0; gap: 10px;
     border-bottom: 1px solid var(--border-subtle);
     transition: var(--transition);
 }
